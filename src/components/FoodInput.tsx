@@ -126,7 +126,7 @@ export function FoodInput() {
     <>
       <form
         onSubmit={handleSubmit}
-        className="shrink-0 z-10 bg-white dark:bg-slate-900 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-700"
+        className="sticky bottom-0 z-10 bg-white dark:bg-slate-900 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-700"
       >
         <div className="mb-3 flex items-end justify-center gap-6">
           <div className="flex flex-col items-center">

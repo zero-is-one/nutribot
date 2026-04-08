@@ -1,4 +1,11 @@
-import { copyFileSync, existsSync, openSync, closeSync, mkdirSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  openSync,
+  closeSync,
+  mkdirSync,
+  unlinkSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const root = process.cwd();
@@ -23,6 +30,12 @@ if (!sourcePath) {
 mkdirSync(dirname(indexPath), { recursive: true });
 copyFileSync(sourcePath, indexPath);
 copyFileSync(indexPath, notFoundPath);
+
+// GitHub Pages may serve `/.html` (as application/octet-stream) before
+// `/index.html`, which causes browsers to download a file instead of rendering.
+if (existsSync(dotHtmlPath)) {
+  unlinkSync(dotHtmlPath);
+}
 
 const fd = openSync(noJekyllPath, "w");
 closeSync(fd);

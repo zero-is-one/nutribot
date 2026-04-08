@@ -9,7 +9,7 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "build:pages": "vite build --base=/nutribot/",
-    "pages:prepare": "cp dist/client/index.html dist/client/404.html && touch dist/client/.nojekyll",
+    "pages:prepare": "node scripts/prepare-pages.mjs",
     "deploy:pages": "npm run build:pages && npm run pages:prepare",
     "preview": "vite preview",
     "test": "vitest run"

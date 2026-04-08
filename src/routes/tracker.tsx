@@ -28,7 +28,7 @@ function Tracker() {
       <FoodHeader />
 
       {/* Food List - scrollable middle section */}
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-8">
         {todayFoods.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-center text-slate-500 dark:text-slate-400">

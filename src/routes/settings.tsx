@@ -123,7 +123,8 @@ function SettingsPage() {
           <section className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
             <h2 className="text-base font-semibold">Food Aliases</h2>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Aliases let you use shortcuts like "splash of milk" for a standard amount.
+              Aliases let you use shortcuts like "splash of milk" for a standard
+              amount.
             </p>
 
             <div className="mt-4 space-y-2">

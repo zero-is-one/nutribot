@@ -31,31 +31,6 @@ export function FoodInput() {
   const { addFood, addAlias, dailyTotals, isLoading, error, clearError } =
     useFoodLog();
 
-  const detectAliasDefinition = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return null;
-
-    const match = trimmed.match(
-      /^(?:(?:remember(?:\s+that)?|in\s+the\s+future(?:\s+remember)?(?:\s+that)?|note(?:\s+that)?)\s+)?(.+?)\s+(?:is|=)\s+(.+)$/i,
-    );
-
-    if (!match) return null;
-
-    const nickname = match[1]
-      .trim()
-      .replace(/^(a|an|the)\s+/i, "")
-      .replace(/[.!,;:]+$/g, "")
-      .toLowerCase();
-    const expansion = match[2].trim().replace(/[.!,;:]+$/g, "");
-
-    if (!nickname || !expansion) return null;
-
-    return {
-      nickname,
-      expansion,
-    };
-  };
-
   const handleCameraSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -84,21 +59,6 @@ export function FoodInput() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && !selectedImage) || isLoading) return;
-
-    // Handle alias definition locally so this is reliable even if AI misclassifies it.
-    if (!selectedImage) {
-      const localAlias = detectAliasDefinition(input);
-      if (localAlias) {
-        clearError();
-        setSuccessMessage("");
-        setAliasConfirmation({
-          isOpen: true,
-          nickname: localAlias.nickname,
-          expansion: localAlias.expansion,
-        });
-        return;
-      }
-    }
 
     try {
       clearError();

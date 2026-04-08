@@ -81,7 +81,7 @@ Your task is to:
 1. Extract one or more food items and their amounts
 2. Estimate the nutritional values: calories, protein (g), carbs (g), fat (g)
 3. Return a JSON object with these exact fields: name, calories, protein, carbs, fat
-4. Detect if the user is creating a food alias (phrases like "remember that...", "in the future...", "note that...")
+4. Detect if the user is creating a food alias in any natural phrasing (examples: "remember that...", "from now on use ... to mean ...", "when I say ... count it as ...")
 5. If the input is unclear, ask for clarification instead of guessing zeros
 
 Available user-defined aliases (use these to interpret food descriptions):`;
@@ -112,6 +112,8 @@ IMPORTANT RULES:
 - Use the aliases when the user mentions them
 - Prefer matching the user's own past food values when the current food appears to be the same item or a very close variant
 - If user creates an alias, detect it and extract the nickname and expansion
+- Alias detection should work for any sentence style, not just "X is Y"
+- For alias-only messages, prioritize returning a valid detectedAlias over asking for clarification
 - If you are unsure what the food/amount is, set "needsClarification" to true and provide a concise "clarificationQuestion"
 - Do NOT return all zero nutrition values unless the user explicitly entered a true zero-calorie item
 - If the user input contains multiple foods (example: "300g tofu 600g rice"), split into separate entries in an "items" array
@@ -144,6 +146,7 @@ IMPORTANT RULES:
     "expansion": "40g soymilk"
   }
 }
+- If the message is primarily creating an alias and not logging food, still return detectedAlias and set nutrition fields to best-effort defaults without failing
 - If clarification is needed, respond like:
 {
   "name": "",
@@ -161,6 +164,51 @@ IMPORTANT RULES:
 Return ONLY valid JSON, no other text.`;
 
     return prompt;
+  }
+
+  private async detectAliasWithAi(
+    model: any,
+    userText: string,
+  ): Promise<DetectedAlias | null> {
+    const aliasPrompt = `You are an alias extraction assistant.
+Determine whether this user message defines a food alias in any phrasing.
+
+Rules:
+- If alias definition exists, return JSON object: {"detectedAlias":{"nickname":"...","expansion":"..."}}
+- If no alias definition exists, return JSON object: {"detectedAlias":null}
+- Keep nickname concise and lowercased.
+- Keep expansion as the intended concrete food amount/description.
+- Return ONLY valid JSON.
+
+User message: "${userText}"`;
+
+    const aliasResponse = await model.generateContent(aliasPrompt);
+    const aliasText =
+      aliasResponse.response.candidates?.[0]?.content?.parts?.[0]?.text ||
+      aliasResponse.response.text();
+
+    if (!aliasText) {
+      return null;
+    }
+
+    const aliasJsonMatch = aliasText.match(/\{[\s\S]*\}/);
+    const aliasJson = aliasJsonMatch ? aliasJsonMatch[0] : aliasText;
+
+    const parsedAlias = JSON.parse(aliasJson);
+    if (!parsedAlias?.detectedAlias) {
+      return null;
+    }
+
+    const nickname = String(parsedAlias.detectedAlias.nickname || "")
+      .trim()
+      .toLowerCase();
+    const expansion = String(parsedAlias.detectedAlias.expansion || "").trim();
+
+    if (!nickname || !expansion) {
+      return null;
+    }
+
+    return { nickname, expansion };
   }
 
   async parseFoodInput(
@@ -222,8 +270,24 @@ Return ONLY valid JSON, no other text.`;
 
       const parsed = JSON.parse(jsonStr);
 
+      const directAlias: DetectedAlias | null = parsed.detectedAlias
+        ? {
+            nickname: String(parsed.detectedAlias.nickname || "")
+              .trim()
+              .toLowerCase(),
+            expansion: String(parsed.detectedAlias.expansion || "").trim(),
+          }
+        : null;
+
+      const inferredAlias =
+        !imageInput && !directAlias
+          ? await this.detectAliasWithAi(model, userText)
+          : null;
+
+      const detectedAlias = directAlias || inferredAlias;
+
       if (parsed.needsClarification) {
-        if (parsed.detectedAlias) {
+        if (detectedAlias) {
           return {
             foodItem: {
               name: "Alias definition",
@@ -234,10 +298,7 @@ Return ONLY valid JSON, no other text.`;
               timestamp: new Date(),
             },
             foodItems: [],
-            detectedAlias: {
-              nickname: parsed.detectedAlias.nickname.toLowerCase().trim(),
-              expansion: parsed.detectedAlias.expansion.trim(),
-            },
+            detectedAlias,
             aliasOnly: true,
           };
         }
@@ -279,6 +340,22 @@ Return ONLY valid JSON, no other text.`;
           item.fat === 0,
       );
 
+      if (allAreLikelyInvalidZero && detectedAlias) {
+        return {
+          foodItem: {
+            name: "Alias definition",
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            timestamp: new Date(),
+          },
+          foodItems: [],
+          detectedAlias,
+          aliasOnly: true,
+        };
+      }
+
       if (allAreLikelyInvalidZero) {
         throw new Error(
           parsed.explanation ||
@@ -291,11 +368,8 @@ Return ONLY valid JSON, no other text.`;
         foodItems: normalizedItems,
       };
 
-      if (parsed.detectedAlias) {
-        result.detectedAlias = {
-          nickname: parsed.detectedAlias.nickname.toLowerCase().trim(),
-          expansion: parsed.detectedAlias.expansion.trim(),
-        };
+      if (detectedAlias) {
+        result.detectedAlias = detectedAlias;
       }
 
       return result;

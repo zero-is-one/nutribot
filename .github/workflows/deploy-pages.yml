@@ -38,9 +38,7 @@ jobs:
         run: npm run build
 
       - name: Add SPA fallback and .nojekyll
-        run: |
-          cp dist/index.html dist/404.html
-          touch dist/.nojekyll
+        run: npm run pages:prepare
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -48,7 +46,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./dist/client
 
   deploy:
     environment:

@@ -140,7 +140,9 @@ export function FoodLogProvider({ children }: { children: React.ReactNode }) {
           : [response.foodItem];
 
       // Save one or more food items
-      const storedItems = parsedItems.map((item) => storageService.saveFoodItem(item));
+      const storedItems = parsedItems.map((item) =>
+        storageService.saveFoodItem(item),
+      );
 
       // Update state
       const updatedHistory = storageService.getAllFoodHistory();

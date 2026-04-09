@@ -233,6 +233,42 @@ User message: "${userText}"`;
     return { nickname, expansion };
   }
 
+  private shouldRunAliasFallback(
+    userText: string,
+    parsed: any,
+    imageInput?: FoodImageInput,
+  ): boolean {
+    if (imageInput || !userText.trim()) {
+      return false;
+    }
+
+    const likelyAliasIntent =
+      /\b(remember|from now on|when i say|call it|count it as|alias|aka|means?)\b/i.test(
+        userText,
+      );
+
+    const hasItems = Array.isArray(parsed?.items) && parsed.items.length > 0;
+    const hasPrimaryName = Boolean(String(parsed?.name || "").trim());
+
+    const parsedCalories = Number(parsed?.calories || 0);
+    const parsedProtein = Number(parsed?.protein || 0);
+    const parsedCarbs = Number(parsed?.carbs || 0);
+    const parsedFat = Number(parsed?.fat || 0);
+
+    const appearsZeroNutrition =
+      parsedCalories === 0 &&
+      parsedProtein === 0 &&
+      parsedCarbs === 0 &&
+      parsedFat === 0;
+
+    const parseLooksAmbiguous =
+      Boolean(parsed?.needsClarification) ||
+      (!hasItems && !hasPrimaryName) ||
+      appearsZeroNutrition;
+
+    return likelyAliasIntent || parseLooksAmbiguous;
+  }
+
   async parseFoodInput(
     userText: string,
     aliases: Alias[] = [],
@@ -306,10 +342,13 @@ User message: "${userText}"`;
           }
         : null;
 
-      const inferredAlias =
-        !imageInput && !directAlias
-          ? await this.detectAliasWithAi(model, userText)
-          : null;
+      const shouldInferAlias =
+        !directAlias &&
+        this.shouldRunAliasFallback(userText, parsed, imageInput);
+
+      const inferredAlias = shouldInferAlias
+        ? await this.detectAliasWithAi(model, userText)
+        : null;
 
       const detectedAlias = directAlias || inferredAlias;
 

@@ -36,6 +36,15 @@ export interface RelevantPastFood {
   timestamp: string;
 }
 
+export interface WeeklyFoodContext {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  timestamp: string;
+}
+
 export interface FoodImageInput {
   mimeType: string;
   data: string;
@@ -75,6 +84,7 @@ class GeminiService {
   private buildSystemPrompt(
     aliases: Alias[],
     relevantPastFoods: RelevantPastFood[],
+    weeklyFoodContext: WeeklyFoodContext[],
   ): string {
     let prompt = `You are a nutrition data extraction AI. The user will describe food they've eaten.
 Your task is to:
@@ -104,6 +114,18 @@ Relevant past foods from this user (use these as strong hints when the current e
       });
     } else {
       prompt += "\n(No relevant past foods found)";
+    }
+
+    prompt += `
+
+Last 7 days of food log entries (use this broader timeline for pattern and portion consistency checks):`;
+
+    if (weeklyFoodContext.length > 0) {
+      weeklyFoodContext.forEach((food) => {
+        prompt += `\n- "${food.name}" -> ${food.calories} cal, ${food.protein}g protein, ${food.carbs}g carbs, ${food.fat}g fat (logged ${food.timestamp})`;
+      });
+    } else {
+      prompt += "\n(No foods logged in the last 7 days)";
     }
 
     prompt += `
@@ -215,6 +237,7 @@ User message: "${userText}"`;
     userText: string,
     aliases: Alias[] = [],
     relevantPastFoods: RelevantPastFood[] = [],
+    weeklyFoodContext: WeeklyFoodContext[] = [],
     imageInput?: FoodImageInput,
   ): Promise<ParsedFoodResponse> {
     if (!userText.trim() && !imageInput) {
@@ -223,7 +246,11 @@ User message: "${userText}"`;
 
     try {
       const model = this.getModel();
-      const systemPrompt = this.buildSystemPrompt(aliases, relevantPastFoods);
+      const systemPrompt = this.buildSystemPrompt(
+        aliases,
+        relevantPastFoods,
+        weeklyFoodContext,
+      );
 
       const parts: any[] = [
         {

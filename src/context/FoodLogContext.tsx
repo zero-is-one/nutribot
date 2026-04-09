@@ -6,6 +6,7 @@ import {
   type FoodImageInput,
   type ParsedFoodResponse,
   type RelevantPastFood,
+  type WeeklyFoodContext,
 } from "../services/gemini";
 import { storageService, type StoredFoodItem } from "../services/storage";
 import { aliasStorageService, type Alias } from "../services/aliasStorage";
@@ -123,10 +124,63 @@ export function FoodLogProvider({ children }: { children: React.ReactNode }) {
           }),
         }));
 
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const recentWeeklyItems = storageService
+        .getAllFoodHistory()
+        .filter((item) => {
+          if (item.deletedAt) {
+            return false;
+          }
+
+          const timestamp = new Date(item.timestamp);
+          return timestamp >= sevenDaysAgo;
+        });
+
+      const dedupedWeeklyItems = new Map<
+        string,
+        (typeof recentWeeklyItems)[0]
+      >();
+
+      for (const item of recentWeeklyItems) {
+        const key = [
+          item.name.trim().toLowerCase(),
+          item.calories,
+          item.protein,
+          item.carbs,
+          item.fat,
+        ].join("|");
+
+        if (!dedupedWeeklyItems.has(key)) {
+          dedupedWeeklyItems.set(key, item);
+        }
+      }
+
+      const weeklyFoodContext: WeeklyFoodContext[] = [
+        ...dedupedWeeklyItems.values(),
+      ]
+        .slice(0, 120)
+        .map((item) => ({
+          name: item.name,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fat: item.fat,
+          timestamp: new Date(item.timestamp).toLocaleString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+        }));
+
       const response = await geminiService.parseFoodInput(
         userText,
         aliases,
         relevantPastFoods,
+        weeklyFoodContext,
         imageInput,
       );
 

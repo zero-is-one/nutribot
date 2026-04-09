@@ -139,8 +139,23 @@ export function FoodLogProvider({ children }: { children: React.ReactNode }) {
           ? response.foodItems
           : [response.foodItem];
 
+      const now = new Date();
+      const baseSelectedTimestamp = new Date(selectedDate);
+      baseSelectedTimestamp.setHours(
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds(),
+      );
+
+      const parsedItemsForSelectedDate = parsedItems.map((item, index) => ({
+        ...item,
+        // Keep current time-of-day ordering while assigning the selected day.
+        timestamp: new Date(baseSelectedTimestamp.getTime() + index),
+      }));
+
       // Save one or more food items
-      const storedItems = parsedItems.map((item) =>
+      const storedItems = parsedItemsForSelectedDate.map((item) =>
         storageService.saveFoodItem(item),
       );
 
